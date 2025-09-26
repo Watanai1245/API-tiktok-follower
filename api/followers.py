@@ -1,7 +1,8 @@
-# Vercel Python Serverless Function
-# Path: /api/followers?username=blackpinkofficial
 import re, json, random, string, requests
 from bs4 import BeautifulSoup
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
 
 def _rand_webid():
     return ''.join(random.choices('0123456789', k=19))
@@ -19,7 +20,6 @@ def _extract(id_regex, html, username):
     m = re.search(id_regex, html, re.DOTALL | re.IGNORECASE)
     if not m: return None
     data = json.loads(m.group(1))
-    # try a few common paths
     try:
         scope = data.get("__DEFAULT_SCOPE__", {})
         wad = scope.get("webapp.user-detail", {})
@@ -69,20 +69,18 @@ def fetch_followers(username):
     if isinstance(n, int): return {"success": True, "username": username, "followers_int": n}
     return {"success": False, "error": "Followers not found in page JSON/DOM"}
 
-def handler(request):
-    # Vercel’s Python runtime passes a WSGI-like request; use query string
+# เส้นทางจริงบน Vercel จะเป็น /api/followers
+# ส่วนใน Flask ให้แม็พไว้ที่ "/" ภายในฟังก์ชันนี้
+@app.get("/")
+def followers():
+    username = (request.args.get("username") or "").strip().lstrip("@")
+    if not username:
+        return jsonify({"success": False, "error": "Please provide 'username'"}), 400
     try:
-        qs = request.get("queryStringParameters") or {}
-        username = (qs.get("username") or "").strip().lstrip("@")
-        if not username:
-            return {"statusCode": 400, "headers": {"Content-Type": "application/json"},
-                    "body": json.dumps({"success": False, "error": "Please provide 'username'"})}
         data = fetch_followers(username)
         code = 200 if data.get("success") else data.get("status_code", 500)
-        return {"statusCode": code, "headers": {"Content-Type": "application/json"}, "body": json.dumps(data)}
+        return jsonify(data), code
+    except requests.RequestException as e:
+        return jsonify({"success": False, "error": f"Network error: {e}"}), 502
     except Exception as e:
-        return {"statusCode": 500, "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"success": False, "error": f"Unexpected error: {e}"})}
-
-# Vercel expects a module-level variable named "app" or a callable named "handler"
-app = handler
+        return jsonify({"success": False, "error": f"Unexpected error: {e}"}), 500
