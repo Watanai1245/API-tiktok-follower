@@ -1,10 +1,44 @@
+import os
 import re, json, random, string, requests
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+TIKTOK_COOKIE = os.environ.get("TIKTOK_COOKIE")  # ← อ่านคุกกี้จาก Env Var
+
 def _rand_webid(): return ''.join(random.choices('0123456789', k=19))
+# ... (ฟังก์ชันช่วยอื่น ๆ เหมือนเดิม)
+
+def fetch_followers(username):
+    url = f"https://www.tiktok.com/@{username}?lang=en"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.google.com/",
+        "Upgrade-Insecure-Requests": "1",
+    }
+    cookies = {"tt_webid_v2": _rand_webid()}
+
+    # ถ้ามี session cookie ให้แนบไปเลย (มักจะผ่าน login wall)
+    if TIKTOK_COOKIE:
+        headers["Cookie"] = TIKTOK_COOKIE
+        cookies = {}  # เมื่อส่ง Cookie header แล้ว ไม่จำเป็นต้องใส่ cookies ซ้ำ
+
+    r = requests.get(url, headers=headers, cookies=cookies, timeout=15, allow_redirects=True)
+
+    # ถ้าโดนเด้งไปหน้า login หรือโดนบล็อก
+    if "login" in r.url.lower():
+        return {"success": False, "status_code": 401, "error": "Login required or cookie expired"}
+
+    if r.status_code != 200:
+        return {"success": False, "status_code": r.status_code, "error": f"HTTP {r.status_code} from TikTok"}
+
+    html = r.text
+    # ... (พาร์ส JSON rehydration / SIGI_STATE / DOM เหมือนเดิม)
+    # คืนค่าตามเดิม
+
 def format_follower_count(v):
     if v is None: return None
     if isinstance(v, (int, float)): return int(v)
