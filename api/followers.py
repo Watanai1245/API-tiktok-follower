@@ -4,9 +4,7 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-def _rand_webid():
-    return ''.join(random.choices('0123456789', k=19))
-
+def _rand_webid(): return ''.join(random.choices('0123456789', k=19))
 def format_follower_count(v):
     if v is None: return None
     if isinstance(v, (int, float)): return int(v)
@@ -69,10 +67,8 @@ def fetch_followers(username):
     if isinstance(n, int): return {"success": True, "username": username, "followers_int": n}
     return {"success": False, "error": "Followers not found in page JSON/DOM"}
 
-# เส้นทางจริงบน Vercel จะเป็น /api/followers
-# ส่วนใน Flask ให้แม็พไว้ที่ "/" ภายในฟังก์ชันนี้
-@app.get("/")
-def followers():
+@app.get("/api/followers")   # <<--- เพิ่มเส้นทางนี้
+def followers_route():
     username = (request.args.get("username") or "").strip().lstrip("@")
     if not username:
         return jsonify({"success": False, "error": "Please provide 'username'"}), 400
@@ -84,3 +80,8 @@ def followers():
         return jsonify({"success": False, "error": f"Network error: {e}"}), 502
     except Exception as e:
         return jsonify({"success": False, "error": f"Unexpected error: {e}"}), 500
+
+# เผื่ออยากดูหน้า index
+@app.get("/")
+def index():
+    return "OK"
